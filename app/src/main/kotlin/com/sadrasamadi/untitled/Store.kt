@@ -9,16 +9,15 @@ fun runStore() {
     }
   }
   store.apply(logger())
-  store.subscribe { println(store.state) }
+  store.subscribe { println("render     : ${store.state}") }
   store.dispatch(Action("increment", 1))
   store.dispatch(Action("increment", 2))
   store.dispatch(Action("increment", 3))
   store.dispatch(Action("decrement", 4))
 }
 
-operator fun String.times(n: Int) = repeat(n)
-
 fun <T> logger(name: String = "default"): Middleware<T> {
+  operator fun String.times(n: Int) = repeat(n)
   return { store, action, next ->
     println("-" * 64)
     println("logger     : $name")
@@ -39,8 +38,6 @@ typealias Middleware<T> = (store: Store<T>, action: Action, next: () -> Unit) ->
 
 typealias Subscriber = () -> Unit
 
-typealias Destroyer = () -> Unit
-
 class Store<T>(initial: T, private val reducer: Reducer<T>) {
 
   var state = initial
@@ -50,12 +47,12 @@ class Store<T>(initial: T, private val reducer: Reducer<T>) {
 
   private val subscribers = mutableListOf<Subscriber>()
 
-  fun apply(middleware: Middleware<T>): Destroyer {
+  fun apply(middleware: Middleware<T>): () -> Unit {
     middlewares.add(middleware)
     return { middlewares.remove(middleware) }
   }
 
-  fun subscribe(subscriber: Subscriber): Destroyer {
+  fun subscribe(subscriber: Subscriber): () -> Unit {
     subscribers.add(subscriber)
     return { subscribers.remove(subscriber) }
   }
