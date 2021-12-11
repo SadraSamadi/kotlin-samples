@@ -12,10 +12,7 @@ import java.awt.event.KeyEvent
 import javax.swing.JFrame
 import javax.swing.JPanel
 import javax.swing.WindowConstants
-import kotlin.math.abs
-import kotlin.math.cos
-import kotlin.math.roundToInt
-import kotlin.math.sin
+import kotlin.math.*
 import kotlin.random.Random
 
 fun runGame() = runBlocking {
@@ -67,24 +64,37 @@ suspend fun play() = coroutineScope {
   }
 }
 
-data class Vector(var x: Float, var y: Float)
+data class Vector(val x: Float, val y: Float) {
 
-data class Circle(val position: Vector, val velocity: Vector, var radius: Float, var color: Color)
+  operator fun times(f: Float) = Vector(f * x, f * y)
+
+  operator fun plus(v: Vector) = Vector(x + v.x, y + v.y)
+
+  infix fun distance(v: Vector) = sqrt((x - v.x).pow(2) + (y - v.y).pow(2))
+
+  infix fun angle(v: Vector) = atan2(x - v.x, y - v.y)
+
+}
+
+data class Circle(var position: Vector, var velocity: Vector, var radius: Float, var color: Color)
 
 class Game(private var width: Float, private var height: Float) {
 
-  private val circles = mutableListOf<Circle>()
+  private var stopped = false
+
+  private lateinit var circles: MutableList<Circle>
 
   fun setup() {
-    val time = System.currentTimeMillis()
-    val random = Random(time)
-    for (i in 0 until 3600) {
-      val r = (i / 360) * 5f + 5f
-      val a = (i % 360) * 1f
+    val seed = System.currentTimeMillis()
+    val random = Random(seed)
+    circles = mutableListOf()
+    for (i in 0 until 1000) {
+      val r = (i / 100 + 1) * 5f
+      val a = (i % 100) * 3.6f
       val circle = Circle(
         Vector(width / 2, height / 2),
         Vector(r * sin(a), r * cos(a)),
-        random.nextDouble(1.0, 2.0).toFloat(),
+        3f - i / 500f,
         Color(random.nextInt())
       )
       circles.add(circle)
@@ -94,14 +104,15 @@ class Game(private var width: Float, private var height: Float) {
   fun resize(width: Float, height: Float) {
     this.width = width
     this.height = height
-    reset()
+    setup()
   }
 
   fun handle(event: KeyEvent) {
     when (event.keyCode) {
-      KeyEvent.VK_SPACE -> circles.removeFirstOrNull()
-      KeyEvent.VK_BACK_SPACE -> circles.removeLastOrNull()
-      KeyEvent.VK_ENTER -> reset()
+      KeyEvent.VK_SPACE -> stopped = !stopped
+      KeyEvent.VK_UP -> circles.forEach { it.velocity *= 1.1f }
+      KeyEvent.VK_DOWN -> circles.forEach { it.velocity *= 0.9f }
+      KeyEvent.VK_R -> setup()
     }
   }
 
@@ -122,19 +133,19 @@ class Game(private var width: Float, private var height: Float) {
   }
 
   fun update(delta: Float) {
+    if (stopped)
+      return
     for (circle in circles) {
-      if (abs(circle.position.x + delta * circle.velocity.x - width / 2) > width / 2 - circle.radius)
-        circle.velocity.x *= -1
-      if (abs(circle.position.y + delta * circle.velocity.y - height / 2) > height / 2 - circle.radius)
-        circle.velocity.y *= -1
-      circle.position.x += delta * circle.velocity.x
-      circle.position.y += delta * circle.velocity.y
+      val center = Vector(width / 2, height / 2)
+      val next = circle.velocity * delta + circle.position
+      val dist = next distance center
+      val angle = next angle center
+      if (abs(dist * sin(angle)) >= center.x - circle.radius)
+        circle.velocity = circle.velocity.copy(x = -1 * circle.velocity.x)
+      if (abs(dist * cos(angle)) >= center.y - circle.radius)
+        circle.velocity = circle.velocity.copy(y = -1 * circle.velocity.y)
+      circle.position += circle.velocity * delta
     }
-  }
-
-  private fun reset() {
-    circles.clear()
-    setup()
   }
 
 }
