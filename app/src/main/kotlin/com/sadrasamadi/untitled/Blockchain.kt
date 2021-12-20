@@ -46,13 +46,13 @@ class Blockchain {
   fun createBlock(receiver: PublicKey, amount: Double): Block {
     val last = chain.lastOrNull()
     val transactions = mempool.toMutableList()
-    val transaction = createTransaction(null, receiver, amount)
-    transactions.add(transaction)
+    val coinbase = createTransaction(null, receiver, amount)
+    transactions.add(coinbase)
     return Block(
       previous = last?.hash ?: "",
       transactions = transactions,
       timestamp = System.currentTimeMillis(),
-      nonce = if (last == null) 0 else last.nonce + 1,
+      nonce = 0,
       hash = ""
     )
   }
